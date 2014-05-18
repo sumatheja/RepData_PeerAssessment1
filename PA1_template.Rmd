@@ -1,20 +1,94 @@
-# Reproducible Research: Peer Assessment 1
+THis file contains the data processing and analysis required in peer assignment 1  
+========================================================================================
 
+The data we are processing is of that of a activity monitoring device of an anonymous individual over a period  
+two months
 
-## Loading and preprocessing the data
+### loading and processing the data
 
+THe data is in the csv format we use to following code to read the data
 
+```{r loading the data}
+activity_data<-read.csv("activity.csv")
+summary(activity_data)
+```
 
-## What is mean total number of steps taken per day?
+### Mean of total number of steps taken per day
+for this we shall ignore the NAs in the dataset and consider only the complete cases
+```{r data processing 1}
+complete_cases<-activity_data[complete.cases(activity_data),]
+```
 
+we shall use the data table package to find out the mean and median of total steps per day and also draw the histogram of total steps taken per day
 
+```{r find the mean per day,fig.height=4}
+install.packages("data.table")
+library(data.table)
+dt<-data.table(complete_cases)
+sumsteps_perday<-dt[,list(sum=sum(steps)),by=date]
+hist(sumsteps_perday$sum,col="red",xlab="total steps per day")
+meansteps_perday<-dt[,list(mean=mean(steps),median=median(steps)),by=date]
+summary(meansteps_perday)
+```
 
-## What is the average daily activity pattern?
+### plot of time intervel and average number of steps
 
+```{r}
+library(lattice)
+dt<-data.table(complete_cases)
+averagesetps_perintervel<-dt[,mean(steps),by=interval]
+attach(averagesetps_perintervel)
+xyplot(V1~interval,type="l",ylab="average number of steps")
+```````
 
+## Inputing missing values
+### Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+The number of rows with missing values is:
 
-## Imputing missing values
+```{r report of NAs}
+incomplete_cases<-activity_data[!complete.cases(activity_data),]
+dim(incomplete_cases)[1]
+```
+### Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+The NAs are replaced by mean steps of that intervel
+```{r replaces NAs,cache=TRUE}
+processed_data<-activity_data
+for(i in 1:nrow(processed_data)){
+    row<-processed_data[i,]
+    if(is.na(row$steps)){
+      processed_data[i,"steps"]<-averagesetps_perintervel[averagesetps_perintervel$interval==row$interval,V1]
+    }
+    i<-i+1
+  }
+```
+### now it can be checked that every row is a complete case  
+```{r check for NA elimination}
+incomplete_cases<-activity_data[!complete.cases(activity_data),]
+dim(incomplete_cases)[1]
+```
 
+### Make a histogram of the total number of steps taken each day  
+```{r histogram of steps per day}
+library(data.table)
+dt<-data.table(processed_data)
+new_sumsteps_perday<-dt[,sum(steps),by=date]
+hist(new_sumsteps_perday$V1,col="red",xlab="total steps per day")
+```
 
+###Calculate and report the mean and median total number of steps taken per day
 
-## Are there differences in activity patterns between weekdays and weekends?
+```{r recalculate mean and medians}
+new_meansteps_perday<-dt[,list(mean=mean(steps),median=median(steps)),by=date]
+summary(new_meansteps_perday)
+```
+### the impace seems to be very minimal. THe median values are always coming as Zeros irrespective of processing
+```{r create weekday weekend factor}
+processed_data$weekday<-"weekday"
+for(i in 1:nrow(processed_data)){
+    row<-processed_data[i,]
+    if(weekdays(as.Date(row$date)) %in% c("Saturday","Sunday")){
+      processed_data[i,"weekday"]<-"weekend"
+    }
+    i<-i+1
+  }
+```
